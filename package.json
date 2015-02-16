@@ -1,0 +1,12 @@
+{
+	"name": "node-pointing-poker",
+	"version": "0.0.0",
+	"description": "A web app for pointing poker. Uses node.js, socket.io, ExpressJS, Jade and DynamoDB.",
+	"dependencies": {
+		"socket.io": "latest",
+		"express": "latest",
+		"jade": "latest",
+		"mongodb": "v1.3.19 "
+	},
+	"author": "Jim Oxenhandler"
+}

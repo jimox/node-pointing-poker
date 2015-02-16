@@ -1,0 +1,7 @@
+input {
+	margin: 5px;
+}
+
+input.small {
+	width: 75px;
+}
