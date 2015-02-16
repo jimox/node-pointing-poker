@@ -1,0 +1,3 @@
+var config = {};
+config.mongouri = 'mongodb://<user>:<password>.mongolab.com:<port>/node-pointing-poker';
+module.exports = config;
