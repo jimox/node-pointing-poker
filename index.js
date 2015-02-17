@@ -35,17 +35,19 @@ io.sockets.on('connection', function(socket) {
 		var fullGameName = getFullGameName(data.teamName, data.gameName);
 		var game = getGame(fullGameName);
 		enterRoom(socket, game, data.userName, data.userType);
+		/*
 		if (data.userType === "player") {
 			io.to(game.playerRoomName).emit('message', { message: data.userName + " joined your room." });
 		} else {
 			io.to(game.observerRoomName).emit('message', { message: data.userName + " joined your room." });
 		}
-		io.sockets.emit('message', { message: data.userName + " joined '" + data.teamName + ": " + data.gameName + "' as " + (data.userType === "player" ? "a player." : "an observer.")  });
+		*/
+		socket.emit('game-joined', { success: true, userType: data.userType });
 	});
 
 	socket.on('disconnect', function () {
 		var user = getUserBySocketId(socket.id);
-	    io.sockets.emit('message', { message: user.userName + " left room." });
+		if (user !== null) io.sockets.emit('message', { message: user.userName + " left room." });
   	});
 });
 

@@ -1,11 +1,13 @@
-.hidden {
+.hidden,
+.error.hidden {
 	display:none;
 }
 
-input {
-	margin: 5px;
+.error .hidden {
+	display: block;
 }
 
-input.small {
-	width: 75px;
+.flow-buttons a.button {
+	margin-left: 0.3125rem;
+	margin-right: 0.3125rem;
 }

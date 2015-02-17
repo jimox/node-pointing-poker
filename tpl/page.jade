@@ -2,7 +2,11 @@ doctype html
 html(lang="en")
 	head
 		title= "Pointing Poker"
+		meta(name='viewport', content='width=device-width, initial-scale=1.0')
+		link(rel='stylesheet', href='/css/normalize.css')
+		link(rel='stylesheet', href='/css/foundation.min.css')
 		link(rel='stylesheet', href='/css/main.css')
+		script(src='/js/vendor/modernizr.js')
 		script(src='https://ajax.googleapis.com/ajax/libs/jquery/2.1.3/jquery.min.js')
 		script(src='/js/handlebars-v3.0.0.js')
 		script(src='/socket.io/socket.io.js')
@@ -16,27 +20,59 @@ html(lang="en")
 		script(id='teams-tpl', type='text/x-handlebars-template')
 			|{{#each teams}}
 			li
-				a(href='#', data-team-name='{{name}}')
+				a.button.tiny(href='#', data-team-name='{{name}}')
 					|{{name}}
 			|{{/each}}
 		script(id='games-tpl', type='text/x-handlebars-template')
 			|{{#each games}}
 			li
-				a(href='#', data-game-name='{{name}}')
+				a.button.tiny(href='#', data-game-name='{{name}}')
 					|{{name}}
+			|{{/each}}
+		script(id='cards-tpl', type='text/x-handlebars-template')
+			|{{#each cards}}
+			a.button.tiny(href='#', data-card='{{this}}')
+				|{{this}}
 			|{{/each}}
 
 	body
 		h2#title.hidden
 		#teams-container
-			h3
-				| Please Select A Team
-			ul#teams-list
+			.row
+				.large-12.columns
+					h3 
+						| Please Select A Team
+			.row
+				.columns
+					ul#teams-list.button-group.even-3
 		#games-container.hidden
-			h3
-				| Please Select A Game
-			ul#games-list
+			.row
+				.large-12.columns
+					h3 
+						| Please Select A Game
+			.row
+				.columns
+					ul#games-list.button-group.even-3
 		#sign-in.hidden
-			input#user-name.small(type='text')
-			input#join-as-player(type='button', value='Join As Player')
-			input#join-as-observer(type='button', value='Join As Observer')
+			.row
+				.small-8.medium-2.large-1.columns
+					input#user-name(type='text', placeholder='Name')
+					small(class='error hidden')
+						| Name is required
+			.row
+				.small-12.columns
+					ul.button-group.radius
+						li
+							a#join-as-player.button.tiny
+								| Join As Player
+						li
+							a#join-as-observer.button.tiny
+								| Join As Observer
+		#game-container.hidden
+			.row
+				.columns.small-12.medium-6.large-6
+					#card-container.flow-buttons
+
+			.row
+				.columns.small-12.medium-6.large-6
+					#results

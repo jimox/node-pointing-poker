@@ -9,6 +9,14 @@ $(function() {
 		console.log(data.message);
 	});
 
+	socket.on('game-joined', function(data) {
+		if (data.success) {
+			$("#sign-in").hide();
+			$("#game-container").show();
+			if (data.userType === 'player') setupCards();
+		}
+	});
+
 	var teamsTpl = Handlebars.compile($("#teams-tpl").html());
 	var gamesTpl = Handlebars.compile($("#games-tpl").html());
 	var titleTpl = Handlebars.compile($("#title-tpl").html());
@@ -52,21 +60,46 @@ $(function() {
 		return false;
 	});
 
-	$("input#join-as-player").click(function() {
-		joinGame("player");
+	$("a#join-as-player").click(function() {
+		var ctl = $('#user-name');
+		var name = $.trim(ctl.val());
+		if (name.length <= 0) {
+			ctl.parent().addClass('error');
+			return false;
+		}
+		joinGame("player", name);
+		return false;
 	});
 
-	$("input#join-as-observer").click(function() {
-		joinGame("observer");
+	$("a#join-as-observer").click(function() {
+		var ctl = $('#user-name');
+		var name = $.trim(ctl.val());
+		if (name.length <= 0) {
+			ctl.parent().addClass('error');
+			return false;
+		}
+		joinGame("observer", name);
+		return false;
+	});
+
+	$("#card-container").on("click", "a", function() {
+		return false;
 	});
 });
 
-function joinGame(userType) {
+function joinGame(userType, name) {
 	var packet = { 
-			userName: $('#user-name').val(),
+			userName: name,
 			userType: userType,
 			teamName: sTeam.name,
 			gameName: sGame.name
 		};
-		socket.emit('join-game', packet);
+	socket.emit('join-game', packet);
+}
+
+function setupCards() {
+	var cardsTpl = Handlebars.compile($("#cards-tpl").html());
+	$("#card-container").html(cardsTpl(sGame));
+	var width = Math.max.apply(Math, $('#card-container a').map(function(){ return $(this).width(); }).get());
+	$('#card-container a').width(width);
 }
