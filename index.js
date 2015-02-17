@@ -5,6 +5,9 @@ var port = process.env.PORT || 1337;
 var mongodb = require('mongodb');
 var uri = config.mongouri;
 
+var games = [];
+var users = [];
+
 app.use(express.static(__dirname + '/public'));
 
 app.set('views', __dirname + '/tpl');
@@ -20,7 +23,6 @@ app.get('/', function(req, res){
 	  		.find({})
 	  		.limit(10)
 	  		.toArray(function(err, docs) {
-	  			console.log(docs[0].name);
 	    		res.render('page', { 'teams': docs });
 			});
 	});
@@ -29,9 +31,69 @@ app.get('/', function(req, res){
 var io = require('socket.io').listen(app.listen(port));
 
 io.sockets.on('connection', function(socket) {
-	socket.on('send-name', function(data) {
-		io.sockets.emit('message', { message: data.name + ' joined.' });
+	socket.on('join-game', function(data) {
+		var fullGameName = getFullGameName(data.teamName, data.gameName);
+		var game = getGame(fullGameName);
+		enterRoom(socket, game, data.userName, data.userType);
+		if (data.userType === "player") {
+			io.to(game.playerRoomName).emit('message', { message: data.userName + " joined your room." });
+		} else {
+			io.to(game.observerRoomName).emit('message', { message: data.userName + " joined your room." });
+		}
+		io.sockets.emit('message', { message: data.userName + " joined '" + data.teamName + ": " + data.gameName + "' as " + (data.userType === "player" ? "a player." : "an observer.")  });
 	});
+
+	socket.on('disconnect', function () {
+		var user = getUserBySocketId(socket.id);
+	    io.sockets.emit('message', { message: user.userName + " left room." });
+  	});
 });
+
+function getUserBySocketId(socketId) {
+	for (var x in users) {
+		var user = users[x];
+		if (user.id === socketId) {
+			return user;
+		}
+	}
+	return null;
+}
+
+function enterRoom(socket, game, userName, userType) {
+	if (userType === "player") {
+		game.players.push(userName);
+		users.push({ id: socket.id, userName: userName, gameName: game.fullGameName });
+		socket.join(game.playerRoomName);
+	} else {
+		game.observers.push(userName);
+		users.push({ id: socket.id, userName: userName, gameName: game.fullGameName });
+		socket.join(game.observerRoomName);
+	}
+}
+
+function getFullGameName(teamName, gameName) {
+	return teamName + "_" + gameName;
+}
+
+function getGame(fullGameName) {
+	for (var x in games) {
+		var game = games[x];
+		if (game.name === fullGameName) {
+			return game;
+		}
+	}
+
+	var game = {
+		name: fullGameName,
+		players: [],
+		playerRoomName: fullGameName + "-p",
+		observers: [],
+		observerRoomName: fullGameName + "-o"
+	};
+
+	games.push(game);
+
+	return game;
+}
 
 console.log('listening on port ' + port);
