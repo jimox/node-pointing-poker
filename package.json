@@ -6,7 +6,8 @@
 		"socket.io": "latest",
 		"express": "latest",
 		"jade": "latest",
-		"mongodb": "v1.3.19"
+		"mongodb": "v1.3.19",
+		"node-debug": "latest"		
 	},
 	"author": "Jim Oxenhandler"
 }

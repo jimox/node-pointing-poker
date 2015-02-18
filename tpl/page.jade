@@ -11,8 +11,10 @@ html(lang="en")
 		script(src='/js/handlebars-v3.0.0.js')
 		script(src='/socket.io/socket.io.js')
 		script(src='/js/chat.js')
+		script(src='/js/jquery.highlight.js')
 		script.
-			var data = { 'teams':!{JSON.stringify(teams)} };
+			var npp = {'socketEndpoint': '!{socketEndpoint}'};
+			var data = {'teams':!{JSON.stringify(teams)}};
 		script(id='title-tpl', type='text/x-handlebars-template')
 			div
 				|{{team.name}}: {{game.name}}
@@ -31,12 +33,23 @@ html(lang="en")
 			|{{/each}}
 		script(id='cards-tpl', type='text/x-handlebars-template')
 			|{{#each cards}}
-			a.button.tiny(href='#', data-card='{{this}}')
+			a.button.tiny(href='#', data-card-value='{{this}}')
 				|{{this}}
 			|{{/each}}
-
+		script(id='hand-tpl', type='text/x-handlebars-template')
+			div.row(data-user-hand='{{userName}}')
+				div.columns.small-8.name
+					|{{userName}}
+				div.columns.small-4.val
+					|{{cardValue}}
 	body
-		h2#title.hidden
+		.row
+			.large-12.columns
+				h1
+					| Pointing Poker
+		.row
+			.large-12.columns
+				h2#title.hidden
 		#teams-container
 			.row
 				.large-12.columns
@@ -72,7 +85,12 @@ html(lang="en")
 			.row
 				.columns.small-12.medium-6.large-6
 					#card-container.flow-buttons
-
-			.row
 				.columns.small-12.medium-6.large-6
+					div.row
+						div.columns.small-8.name
+							h5
+								| Player
+						div.columns.small-4.val
+							h5
+								| Card
 					#results

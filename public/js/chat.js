@@ -2,8 +2,20 @@ var sTeam,
 	sGame,
 	socket;
 
+var teamsTpl,
+	gamesTpl,
+	titleTpl,
+	cardsTpl,
+	handTpl;
+
 $(function() {
-	socket = io.connect('//localhost:1337');
+	teamsTpl = Handlebars.compile($("#teams-tpl").html());
+	gamesTpl = Handlebars.compile($("#games-tpl").html());
+	titleTpl = Handlebars.compile($("#title-tpl").html());
+	cardsTpl = Handlebars.compile($("#cards-tpl").html());
+	handTpl = Handlebars.compile($("#hand-tpl").html());
+
+	socket = io.connect('//' + npp.socketEndpoint);
 
 	socket.on('message', function(data) {
 		console.log(data.message);
@@ -13,13 +25,22 @@ $(function() {
 		if (data.success) {
 			$("#sign-in").hide();
 			$("#game-container").show();
-			if (data.userType === 'player') setupCards();
+			if (data.userType === 'player') {
+				setupCards();
+			}
+			if (data.cards.length > 0) {
+				manageCardList(data.cards);
+			}
 		}
 	});
 
-	var teamsTpl = Handlebars.compile($("#teams-tpl").html());
-	var gamesTpl = Handlebars.compile($("#games-tpl").html());
-	var titleTpl = Handlebars.compile($("#title-tpl").html());
+	socket.on('card-played', function (card) {
+		manageHand(card);
+	});
+
+	socket.on('user-left', function (data) {
+		$('#results').find('div[data-user-hand="' + data.userName + '"]').remove();
+	});
 
 	// Bind the teams
 	$("#teams-list").html(teamsTpl(data));
@@ -83,6 +104,8 @@ $(function() {
 	});
 
 	$("#card-container").on("click", "a", function() {
+		var ctl = $(this);
+		socket.emit('play-card', { cardValue: ctl.attr('data-card-value') });
 		return false;
 	});
 });
@@ -97,9 +120,33 @@ function joinGame(userType, name) {
 	socket.emit('join-game', packet);
 }
 
-function setupCards() {
-	var cardsTpl = Handlebars.compile($("#cards-tpl").html());
+function setupCards() {	
 	$("#card-container").html(cardsTpl(sGame));
 	var width = Math.max.apply(Math, $('#card-container a').map(function(){ return $(this).width(); }).get());
 	$('#card-container a').width(width);
+}
+
+function manageCardList(cards) {
+	for (var x in cards) {
+		if (cards.hasOwnProperty(x)) {
+			var card = cards[x];
+			manageHand(card);
+		}
+	}
+}
+
+function manageHand(card) {
+	var res = $('#results');
+	var hand = res.find('div[data-user-hand="' + card.userName + '"]');
+	if (hand.length > 0) {
+		hand.find('.val').html(card.cardValue);
+	} else {
+		res.append(getHand(card));
+		hand = res.find('div[data-user-hand="' + card.userName + '"]');
+	}
+	hand.higlight();
+}
+
+function getHand(card) {	
+	return handTpl(card);
 }

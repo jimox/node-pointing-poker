@@ -1,12 +1,12 @@
-var config = require('./config')
+var config = require('./config');
 var express = require('express');
 var app = express();
 var port = process.env.PORT || 1337;
 var mongodb = require('mongodb');
 var uri = config.mongouri;
 
-var games = [];
 var users = [];
+var games = [];
 
 app.use(express.static(__dirname + '/public'));
 
@@ -15,15 +15,17 @@ app.set('view engine', 'jade');
 app.engine('jade', require('jade').__express);
 
 app.get('/', function(req, res){
+	
 	mongodb.MongoClient.connect(uri, function(err, db) {
+
 		if(err) throw err;
 
-		var collection = db
-	  		.collection('teams')
+		db
+			.collection('teams')
 	  		.find({})
 	  		.limit(10)
 	  		.toArray(function(err, docs) {
-	    		res.render('page', { 'teams': docs });
+	    		res.render('page', { 'socketEndpoint': req.headers.host, 'teams': docs });
 			});
 	});
 });
@@ -33,44 +35,126 @@ var io = require('socket.io').listen(app.listen(port));
 io.sockets.on('connection', function(socket) {
 	socket.on('join-game', function(data) {
 		var fullGameName = getFullGameName(data.teamName, data.gameName);
-		var game = getGame(fullGameName);
-		enterRoom(socket, game, data.userName, data.userType);
-		/*
-		if (data.userType === "player") {
-			io.to(game.playerRoomName).emit('message', { message: data.userName + " joined your room." });
-		} else {
-			io.to(game.observerRoomName).emit('message', { message: data.userName + " joined your room." });
-		}
-		*/
-		socket.emit('game-joined', { success: true, userType: data.userType });
+		var game = getOrAddGame(fullGameName);
+		game.sockets.push({ userName: data.userName, userType: data.userType, socket: socket });
+		var user = enterRoom(socket, game, data.userName, data.userType);
+		playEmptyCardForNewUser(user);
+		var cards = getGameCardsForUser(user);
+		socket.emit('game-joined', { success: true, userType: data.userType, cards: cards });
 	});
+
+	socket.on('play-card', function(data) {
+  		var user = getUserBySocketId(socket.id);
+  		playCardForUser(user, data.cardValue);
+  	});
 
 	socket.on('disconnect', function () {
 		var user = getUserBySocketId(socket.id);
-		if (user !== null) io.sockets.emit('message', { message: user.userName + " left room." });
-  	});
+		if (user !== null) {
+			var game = exitRoom(user);
+			var sct = getSocket(game, user.userName);
+			game.sockets.removeObj(sct);
+			io.sockets.emit('user-left', { userName: user.userName });
+		}
+  	});  
 });
+
+function getSocket(game, userName) {
+	for (var x in game.sockets) {
+		if (game.sockets.hasOwnProperty(x)) {
+			var socket = game.sockets[x];
+			if (socket.userName === userName) {
+				return socket;
+			}
+		}
+	}
+	return null;
+}
+
+function playCardForUser(user, cardValue) {
+	var game = getGame(user.fullGameName);
+	var card;
+	
+	for (var x in game.cards) {
+		if (game.cards.hasOwnProperty(x)) {
+			var eCard = game.cards[x];
+			if (eCard.userName === user.userName) {
+				card = eCard;
+				break;
+			}
+		}
+	}
+
+	if (card) {
+		card.cardValue = cardValue;
+	} else {
+		card = createCardForUser(user, cardValue, true);
+		game.cards.push(card);
+	}
+
+	alertCardPlayed(game, user, card);
+}
+
+function alertCardPlayed(game, user, card) {
+	var sCard = createCard(user.userName, '?');
+	for (var x in game.sockets) {
+		if (game.sockets.hasOwnProperty(x)) {
+			var socket = game.sockets[x];
+			if (socket.userName === user.userName || card.cardValue === null || socket.userType !== 'player') {
+				socket.socket.emit('card-played', card);
+			} else {
+				socket.socket.emit('card-played', sCard);
+			}
+		}
+	}
+}
+
+function playEmptyCardForNewUser(user) {
+	var game = getGame(user.fullGameName);
+	var card = createCard(user.userName, null);
+	alertCardPlayed(game, user, card);
+}
 
 function getUserBySocketId(socketId) {
 	for (var x in users) {
-		var user = users[x];
-		if (user.id === socketId) {
-			return user;
+		if (users.hasOwnProperty(x)) {
+			var user = users[x];
+			if (user.id === socketId) {
+				return user;
+			}
 		}
 	}
 	return null;
 }
 
 function enterRoom(socket, game, userName, userType) {
+	var user = { id: socket.id, socket: socket, userName: userName, fullGameName: game.fullGameName, userType: userType };
 	if (userType === "player") {
-		game.players.push(userName);
-		users.push({ id: socket.id, userName: userName, gameName: game.fullGameName });
 		socket.join(game.playerRoomName);
 	} else {
-		game.observers.push(userName);
-		users.push({ id: socket.id, userName: userName, gameName: game.fullGameName });
 		socket.join(game.observerRoomName);
 	}
+	users.push(user);
+	return user;
+}
+
+function exitRoom(user) {
+	var game = getGame(user.fullGameName);
+	if (game) {
+		for (var x in game.cards) {
+			if (game.cards.hasOwnProperty(x)) {
+				var card = game.cards[x];
+				if (card) {
+					game.cards.removeObj(card);
+					break;
+				}				
+			}			
+		}
+	}
+
+	users.removeObj(user);
+
+	return game;
 }
 
 function getFullGameName(teamName, gameName) {
@@ -79,23 +163,72 @@ function getFullGameName(teamName, gameName) {
 
 function getGame(fullGameName) {
 	for (var x in games) {
-		var game = games[x];
-		if (game.name === fullGameName) {
-			return game;
+		if (games.hasOwnProperty(x)) {
+			var game = games[x];
+			if (game.fullGameName === fullGameName) {
+				return game;
+			}
 		}
 	}
 
-	var game = {
-		name: fullGameName,
-		players: [],
-		playerRoomName: fullGameName + "-p",
-		observers: [],
-		observerRoomName: fullGameName + "-o"
-	};
+	return null;
+}
 
-	games.push(game);
+function getGameCardsForUser(user) {
+	var game = getGame(user.fullGameName);
+	if (user.userType === 'player') {
+		var pCards = [];
+		for (var x in game.cards) {
+			if (game.cards.hasOwnProperty(x)) {
+				var card = game.cards[x];
+				if (card.userName === user.userName) {
+					pCards.push(card);	
+				} else {
+					pCards.push(createCard(card.userName, '?'));
+				}				
+			}			
+		}
+		return pCards;
+	} else {
+		return game.cards;
+	}
+}
+
+function createCardForUser(user, cardValue, alwaysShowValue) {
+	if (alwaysShowValue || user.userType !== 'player') {
+		return createCard(user.userName, cardValue);
+	}
+
+	return createCard(user.userName, '?');
+}
+
+function createCard(userName, cardValue) {
+	return { userName: userName, cardValue: cardValue };
+}
+
+function getOrAddGame(fullGameName) {
+	var game = getGame(fullGameName);
+
+	if (!game) {
+		game = { 
+			fullGameName: fullGameName, 			
+			playerRoomName: fullGameName + "-p",
+			observerRoomName: fullGameName + "-o",
+			cards: [],
+			sockets: []
+		}
+		games.push(game);
+	}
 
 	return game;
 }
+
+Array.prototype.removeObj = function(obj) {
+	var o = Object(this);
+	var index = o.indexOf(obj);
+	if (index >= 0) {
+		o.splice(index, 1);
+	}
+};
 
 console.log('listening on port ' + port);
