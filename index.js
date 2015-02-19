@@ -38,9 +38,16 @@ io.sockets.on('connection', function(socket) {
 		var game = getOrAddGame(fullGameName);
 		game.sockets.push({ userName: data.userName, userType: data.userType, socket: socket });
 		var user = enterRoom(socket, game, data.userName, data.userType);
-		playEmptyCardForNewUser(user);
+		
+		if (data.userType === 'player') {
+			playEmptyCardForNewUser(user);
+		} else {
+			game.observers.push(data.userName);
+			alertNewObserverJoined(game, user);
+		}
+
 		var cards = getGameCardsForUser(user);
-		socket.emit('game-joined', { success: true, userType: data.userType, cards: cards });
+		socket.emit('game-joined', { success: true, userName: data.userName, userType: data.userType, observers: game.observers, cards: cards });
 	});
 
 	socket.on('play-card', function(data) {
@@ -71,6 +78,13 @@ function getSocket(game, userName) {
 	return null;
 }
 
+function playEmptyCardForNewUser(user) {
+	var game = getGame(user.fullGameName);
+	var card = createCard(user.userName, null);
+	game.cards.push(card);
+	alertCardPlayed(game, user, card);
+}
+
 function playCardForUser(user, cardValue) {
 	var game = getGame(user.fullGameName);
 	var card;
@@ -95,6 +109,14 @@ function playCardForUser(user, cardValue) {
 	alertCardPlayed(game, user, card);
 }
 
+function alertNewObserverJoined(game, user) {
+	for (var x in game.sockets) {
+		if (game.sockets.hasOwnProperty(x)) {
+			game.sockets[x].socket.emit('observer-joined', { userName: user.userName });
+		}
+	}
+}
+
 function alertCardPlayed(game, user, card) {
 	var sCard = createCard(user.userName, '?');
 	for (var x in game.sockets) {
@@ -107,12 +129,6 @@ function alertCardPlayed(game, user, card) {
 			}
 		}
 	}
-}
-
-function playEmptyCardForNewUser(user) {
-	var game = getGame(user.fullGameName);
-	var card = createCard(user.userName, null);
-	alertCardPlayed(game, user, card);
 }
 
 function getUserBySocketId(socketId) {
@@ -215,6 +231,7 @@ function getOrAddGame(fullGameName) {
 			playerRoomName: fullGameName + "-p",
 			observerRoomName: fullGameName + "-o",
 			cards: [],
+			observers: [],
 			sockets: []
 		}
 		games.push(game);

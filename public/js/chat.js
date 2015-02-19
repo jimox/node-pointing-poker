@@ -6,7 +6,8 @@ var teamsTpl,
 	gamesTpl,
 	titleTpl,
 	cardsTpl,
-	handTpl;
+	handTpl,
+	observerTpl;
 
 $(function() {
 	teamsTpl = Handlebars.compile($("#teams-tpl").html());
@@ -14,6 +15,7 @@ $(function() {
 	titleTpl = Handlebars.compile($("#title-tpl").html());
 	cardsTpl = Handlebars.compile($("#cards-tpl").html());
 	handTpl = Handlebars.compile($("#hand-tpl").html());
+	observerTpl = Handlebars.compile($("#observer-tpl").html());
 
 	socket = io.connect('//' + npp.socketEndpoint);
 
@@ -33,6 +35,10 @@ $(function() {
 			}
 		}
 	});
+
+	socket.on('observer-joined', function(data) {
+		addObserver(data);
+	});	
 
 	socket.on('card-played', function (card) {
 		manageHand(card);
@@ -109,6 +115,12 @@ $(function() {
 		return false;
 	});
 });
+
+function addObserver(data) {
+	var observers = $('#observers');
+	observers.append(observerTpl(data));
+	$('#observer-container').show();
+}
 
 function joinGame(userType, name) {
 	var packet = { 
