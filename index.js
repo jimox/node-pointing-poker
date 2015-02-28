@@ -1,3 +1,5 @@
+debugger;
+
 var config = require('./config');
 var express = require('express');
 var app = express();
@@ -21,7 +23,7 @@ app.get('/', function(req, res){
 		if(err) throw err;
 
 		db
-			.collection('teams')
+			.collection('team')
 	  		.find({})
 	  		.limit(10)
 	  		.toArray(function(err, docs) {

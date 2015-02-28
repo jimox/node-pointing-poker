@@ -46,6 +46,7 @@ $(function() {
 
 	socket.on('user-left', function (data) {
 		$('#results').find('div[data-user-hand="' + data.userName + '"]').remove();
+		$('#observers').find('div[data-observer="' + data.userName + '"]').remove();
 	});
 
 	// Bind the teams
